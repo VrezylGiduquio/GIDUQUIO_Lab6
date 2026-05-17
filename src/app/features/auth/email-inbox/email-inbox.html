@@ -1,0 +1,29 @@
+<div class="container mt-4">
+  <h3>📬 Fake Email Inbox</h3>
+
+  <div *ngIf="(emails$ | async)?.length === 0" class="text-muted">
+    No emails yet
+  </div>
+
+  <div *ngFor="let email of emails$ | async" class="card mb-3">
+    <div class="card-body">
+
+      <h5 class="card-title">
+        {{ email.subject }}
+      </h5>
+
+      <h6 class="card-subtitle mb-2 text-muted">
+        To: {{ email.to }}
+      </h6>
+
+      <a [href]="email.body" class="btn btn-primary btn-sm">
+        Open Link
+        </a>
+
+      <small class="text-muted">
+        {{ email.createdAt | date:'short' }}
+      </small>
+
+    </div>
+  </div>
+</div>

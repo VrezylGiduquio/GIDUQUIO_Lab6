@@ -1,0 +1,17 @@
+<div class="card p-4">
+
+  <h3>Profile</h3>
+
+  <form [formGroup]="profileForm" (ngSubmit)="updateProfile()">
+
+    <input class="form-control mb-2" formControlName="firstName" placeholder="First Name">
+    <input class="form-control mb-2" formControlName="lastName" placeholder="Last Name">
+    <input class="form-control mb-2" formControlName="email" placeholder="Email">
+
+    <button class="btn btn-primary w-100">
+      Update Profile
+    </button>
+
+  </form>
+
+</div>

@@ -1,0 +1,32 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container-fluid">
+    <a class="navbar-brand">
+      Angular Auth Boilerplate
+    </a>
+            <div class="d-flex gap-2">
+
+        <a routerLink="/dashboard" class="btn btn-outline-light btn-sm">
+        Dashboard
+        </a>
+
+        <a routerLink="/profile" class="btn btn-outline-light btn-sm">
+        Profile
+        </a>
+
+        @if (user?.role === 'Admin') {
+        <a routerLink="/admin" class="btn btn-warning btn-sm">
+            Admin
+        </a>
+        }
+
+        <button class="btn btn-outline-light btn-sm" (click)="logout()">
+        Logout
+        </button>
+
+        </div>
+        </div>
+</nav>
+
+<div class="container mt-4">
+  <router-outlet></router-outlet>
+</div>
