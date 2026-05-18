@@ -6,6 +6,11 @@
   [formGroup]="loginForm"
   (ngSubmit)="onSubmit()"
 >
+  @if (errorMessage) {
+    <div class="alert alert-danger">
+      {{ errorMessage }}
+    </div>
+  }
 
   <div class="mb-3">
 
@@ -74,8 +79,9 @@
   <button
     type="submit"
     class="btn btn-dark w-100"
+    [disabled]="isSubmitting"
   >
-    Login
+    {{ isSubmitting ? 'Signing in...' : 'Login' }}
   </button>
 
 </form>

@@ -18,6 +18,9 @@ import { AuthService } from '../../../core/auth/services/auth.service';
 export class ForgotPassword {
 
   forgotForm: ReturnType<FormBuilder['group']>;
+  errorMessage = '';
+  successMessage = '';
+  isSubmitting = false;
 
   constructor(
     private fb: FormBuilder,
@@ -43,12 +46,22 @@ export class ForgotPassword {
       return;
     }
 
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.isSubmitting = true;
+
     const email = this.forgotForm.value.email!;
 
-    this.authService.forgotPassword(email);
-
-    alert('Reset email sent');
-
-    this.router.navigate(['/emails']);
+    this.authService.forgotPassword(email).subscribe({
+      next: (response) => {
+        this.isSubmitting = false;
+        this.successMessage = response.message;
+        this.router.navigate(['/emails']);
+      },
+      error: (err) => {
+        this.isSubmitting = false;
+        this.errorMessage = err.error?.message || err.message || 'Unable to process password reset';
+      }
+    });
   }
 }

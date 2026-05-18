@@ -1,29 +1,51 @@
 <div class="container mt-4">
-  <h3>📬 Fake Email Inbox</h3>
+  <div class="card p-4 shadow-sm">
+    <h3 class="mb-3">Check Your Email</h3>
 
-  <div *ngIf="(emails$ | async)?.length === 0" class="text-muted">
-    No emails yet
-  </div>
+    @if (statusMessage) {
+      <div class="alert alert-success">
+        {{ statusMessage }}
+      </div>
+    }
 
-  <div *ngFor="let email of emails$ | async" class="card mb-3">
-    <div class="card-body">
+    @if (errorMessage) {
+      <div class="alert alert-danger">
+        {{ errorMessage }}
+      </div>
+    }
 
-      <h5 class="card-title">
-        {{ email.subject }}
-      </h5>
+    @if (preview || pendingEmail) {
+      <p class="mb-3 text-muted">
+        {{ emailActionLabel() }}
+        <strong>{{ preview?.to ?? pendingEmail }}</strong>.
+        If you did not receive it, resend it below.
+      </p>
 
-      <h6 class="card-subtitle mb-2 text-muted">
-        To: {{ email.to }}
-      </h6>
-
-      <a [href]="email.body" class="btn btn-primary btn-sm">
-        Open Link
+      @if (preview?.actionUrl) {
+        <a
+          class="btn btn-dark w-100 mb-2"
+          [href]="preview?.actionUrl || '#'"
+        >
+          {{ openLinkLabel() }}
         </a>
+      }
 
-      <small class="text-muted">
-        {{ email.createdAt | date:'short' }}
-      </small>
+      <button
+        type="button"
+        class="btn btn-outline-dark w-100 mb-3"
+        [disabled]="isResending"
+        (click)="resendEmail()"
+      >
+        {{ resendLabel() }}
+      </button>
+    } @else {
+      <p class="mb-3 text-muted">
+        No local email preview is available yet. Register or request a password reset first.
+      </p>
+    }
 
-    </div>
+    <a routerLink="/login" class="btn btn-dark">
+      Back to login
+    </a>
   </div>
 </div>

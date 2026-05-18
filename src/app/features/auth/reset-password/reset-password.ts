@@ -25,6 +25,10 @@ export class ResetPassword implements OnInit {
   token: string = '';
 
   resetForm: ReturnType<FormBuilder['group']>;
+  errorMessage = '';
+  successMessage = '';
+  tokenValidated = false;
+  isSubmitting = false;
 
   constructor(
     private fb: FormBuilder,
@@ -40,6 +44,12 @@ export class ResetPassword implements OnInit {
           Validators.required,
           Validators.minLength(6)
         ]
+      ],
+      confirmPassword: [
+        '',
+        [
+          Validators.required
+        ]
       ]
     });
   }
@@ -48,6 +58,20 @@ export class ResetPassword implements OnInit {
 
     this.token =
       this.route.snapshot.queryParamMap.get('token') || '';
+
+    if (!this.token) {
+      this.errorMessage = 'Missing reset token';
+      return;
+    }
+
+    this.authService.validateResetToken(this.token).subscribe({
+      next: () => {
+        this.tokenValidated = true;
+      },
+      error: (err) => {
+        this.errorMessage = err.error?.message || err.message || 'Invalid or expired reset token';
+      }
+    });
   }
 
   onSubmit(): void {
@@ -57,20 +81,29 @@ export class ResetPassword implements OnInit {
       return;
     }
 
-    const success = this.authService.resetPassword(
-      this.token,
-      this.resetForm.value.password!
-    );
-
-    if (success) {
-
-      alert('Password updated');
-
-      this.router.navigate(['/login']);
-
-    } else {
-
-      alert('Invalid or expired token');
+    if (this.resetForm.value.password !== this.resetForm.value.confirmPassword) {
+      this.errorMessage = 'Passwords do not match';
+      return;
     }
+
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.isSubmitting = true;
+
+    this.authService.resetPassword(
+      this.token,
+      this.resetForm.value.password!,
+      this.resetForm.value.confirmPassword!
+    ).subscribe({
+      next: () => {
+        this.isSubmitting = false;
+        this.successMessage = 'Password updated successfully. You can now log in.';
+        this.router.navigate(['/login']);
+      },
+      error: (err) => {
+        this.isSubmitting = false;
+        this.errorMessage = err.error?.message || err.message || 'Unable to reset password';
+      }
+    });
   }
 }

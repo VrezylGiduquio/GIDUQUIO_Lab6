@@ -20,6 +20,8 @@ import { RouterLink } from '@angular/router';
 export class Login {
 
   loginForm: ReturnType<FormBuilder['group']>;
+  errorMessage = '';
+  isSubmitting = false;
 
   constructor(private fb: FormBuilder, private authService: AuthService, private router: Router) {
 
@@ -49,15 +51,19 @@ export class Login {
     return;
   }
 
+  this.errorMessage = '';
+  this.isSubmitting = true;
+
   const data: LoginRequest = this.loginForm.value;
 
   this.authService.login(data).subscribe({
-    next: (res) => {
-      console.log('LOGIN SUCCESS', res);
+    next: () => {
+      this.isSubmitting = false;
       this.router.navigate(['/dashboard']);
     },
     error: (err) => {
-      console.error(err);
+      this.isSubmitting = false;
+      this.errorMessage = err.error?.message || err.message || 'Login failed';
     }
   });
 }

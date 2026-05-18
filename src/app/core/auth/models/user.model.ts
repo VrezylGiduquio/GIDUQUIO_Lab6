@@ -4,9 +4,6 @@ export interface User {
   lastName: string;
   email: string;
   role: 'User' | 'Admin';
-  verified: boolean;
-  password: string;
-  verificationToken?: string;
-  resetToken?: string;
-  resetTokenExpiry?: number;
+  verified?: boolean | string;
+  jwtToken?: string;
 }

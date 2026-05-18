@@ -1,329 +1,262 @@
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, of } from 'rxjs';
+import { catchError, map, tap } from 'rxjs/operators';
 
-import { User } from '../models/user.model';
+import { environment } from '@environments/environment';
+
+import { AuthResponse } from '../models/auth-response.model';
+import { DevEmailPreview, MessageResponse } from '../models/dev-email-response.model';
 import { LoginRequest } from '../models/login-request.model';
 import { RegisterRequest } from '../models/register-request.model';
-import { AuthResponse } from '../models/auth-response.model';
-import { FakeEmail } from '../models/fake-email.model';
+import { User } from '../models/user.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
+  private readonly baseUrl = `${environment.apiUrl}/accounts`;
+  private readonly storageKey = 'currentUser';
+  private readonly emailPreviewKey = 'devEmailPreview';
+  private readonly pendingVerificationEmailKey = 'pendingVerificationEmail';
 
-  // =========================
-  // STATE
-  // =========================
-  private userSubject = new BehaviorSubject<User | null>(
+  private readonly userSubject = new BehaviorSubject<User | null>(
     this.getUserFromStorage()
   );
-  user$ = this.userSubject.asObservable();
 
-  private emailSubject = new BehaviorSubject<FakeEmail[]>([]);
-  emails$ = this.emailSubject.asObservable();
+  readonly user$ = this.userSubject.asObservable();
 
-  private refreshTimer: any;
+  constructor(private http: HttpClient) {}
 
-  // =========================
-  // EMAIL SYSTEM
-  // =========================
-  private sendEmail(email: FakeEmail): void {
-    const emails = this.emailSubject.value;
-    this.emailSubject.next([email, ...emails]);
-  }
-
-  // =========================
-  // STORAGE
-  // =========================
-  private loadUsers(): any[] {
-    return JSON.parse(localStorage.getItem('users') || '[]');
-  }
-
-  private saveUsers(users: any[]): void {
-    localStorage.setItem('users', JSON.stringify(users));
-  }
-
-  private saveCurrentUser(user: User): void {
-    localStorage.setItem('currentUser', JSON.stringify(user));
-  }
-
-  private getUserFromStorage(): User | null {
-    const user = localStorage.getItem('currentUser');
-    return user ? JSON.parse(user) : null;
-  }
-
-  // =========================
-  // JWT HELPERS
-  // =========================
-  private generateFakeJwt(user: User): string {
-    return btoa(JSON.stringify({
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      exp: Date.now() + 900000
-    }));
-  }
-
-  private storeTokens(response: AuthResponse): void {
-    localStorage.setItem('accessToken', response.accessToken);
-    localStorage.setItem('refreshToken', response.refreshToken);
-    localStorage.setItem(
-      'tokenExpiry',
-      (Date.now() + response.expiresIn * 1000).toString()
+  login(data: LoginRequest): Observable<User> {
+    return this.http.post<AuthResponse>(
+      `${this.baseUrl}/authenticate`,
+      data,
+      { withCredentials: true }
+    ).pipe(
+      map(response => this.toUser(response)),
+      tap(user => this.setSession(user))
     );
   }
 
-  // =========================
-  // LOGIN
-  // =========================
-  login(data: LoginRequest): Observable<AuthResponse> {
-
-    const users = this.loadUsers();
-
-    const user = users.find(
-      u => u.email === data.email && u.password === data.password
+  register(data: RegisterRequest): Observable<MessageResponse> {
+    return this.http.post<MessageResponse>(`${this.baseUrl}/register`, data).pipe(
+      tap(response => {
+        this.setPendingVerificationEmail(data.email);
+        this.setEmailPreview(response.devEmailPreview);
+      })
     );
+  }
+
+  verifyEmail(token: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/verify-email`, { token });
+  }
+
+  forgotPassword(email: string): Observable<MessageResponse> {
+    return this.http.post<MessageResponse>(`${this.baseUrl}/forgot-password`, { email }).pipe(
+      tap(response => this.setEmailPreview(response.devEmailPreview))
+    );
+  }
+
+  resendVerificationEmail(email: string): Observable<MessageResponse> {
+    return this.http.post<MessageResponse>(`${this.baseUrl}/resend-verification`, { email }).pipe(
+      tap(response => {
+        this.setPendingVerificationEmail(email);
+        this.setEmailPreview(response.devEmailPreview);
+      })
+    );
+  }
+
+  validateResetToken(token: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/validate-reset-token`, { token });
+  }
+
+  resetPassword(token: string, password: string, confirmPassword: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/reset-password`, {
+      token,
+      password,
+      confirmPassword
+    });
+  }
+
+  refreshToken(): Observable<User | null> {
+    return this.http.post<AuthResponse>(
+      `${this.baseUrl}/refresh-token`,
+      {},
+      { withCredentials: true }
+    ).pipe(
+      map(response => this.toUser(response)),
+      tap(user => this.setSession(user)),
+      catchError(() => {
+        this.clearSession();
+        return of(null);
+      })
+    );
+  }
+
+  updateProfile(user: User): Observable<User> {
+    return this.http.put<AuthResponse>(`${this.baseUrl}/${user.id}`, user).pipe(
+      map(response => this.toUser(response)),
+      tap(updatedUser => this.setSession(updatedUser))
+    );
+  }
+
+  getAccount(id: string): Observable<User> {
+    return this.http.get<AuthResponse>(`${this.baseUrl}/${id}`).pipe(
+      map(response => this.toUser(response))
+    );
+  }
+
+  updateAccount(user: User): Observable<User> {
+    return this.http.put<AuthResponse>(`${this.baseUrl}/${user.id}`, user).pipe(
+      map(response => this.toUser(response)),
+      tap(updatedUser => {
+        if (this.getCurrentUser()?.id === updatedUser.id) {
+          this.setSession(updatedUser);
+        }
+      })
+    );
+  }
+
+  changePassword(input: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }): Observable<MessageResponse> {
+    const user = this.getCurrentUser();
 
     if (!user) {
-      return throwError(() => 'Invalid email or password');
+      return of({ message: 'No active session' });
     }
 
-    if (!user.verified) {
-      return throwError(() => 'Account not verified');
-    }
-
-    this.logout(); // reset any previous session
-
-    this.userSubject.next(user);
-    this.saveCurrentUser(user);
-
-    const response: AuthResponse = {
-      user,
-      accessToken: this.generateFakeJwt(user),
-      refreshToken: crypto.randomUUID(),
-      expiresIn: 900
-    };
-
-    this.storeTokens(response);
-    this.startTokenTimer();
-
-    return of(response);
-  }
-
-  // =========================
-  // REGISTER
-  // =========================
-  register(data: RegisterRequest): Observable<AuthResponse> {
-
-    const users = this.loadUsers();
-
-    const exists = users.some(u => u.email === data.email);
-
-    if (exists) {
-      return throwError(() => 'User already exists');
-    }
-
-    const token = crypto.randomUUID();
-
-    const newUser: any = {
-      id: crypto.randomUUID(),
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email,
-      password: data.password,
-      role: users.length === 0 ? 'Admin' : 'User',
-      verified: false,
-      verificationToken: token
-    };
-
-    users.push(newUser);
-    this.saveUsers(users);
-
-    this.sendEmail({
-      to: newUser.email,
-      subject: 'Verify your account',
-      body: `/verify-email?token=${token}`,
-      createdAt: Date.now()
-    });
-
-    const response: AuthResponse = {
-      user: newUser,
-      accessToken: this.generateFakeJwt(newUser),
-      refreshToken: crypto.randomUUID(),
-      expiresIn: 900
-    };
-
-    this.storeTokens(response);
-
-    return of(response);
-  }
-
-  // =========================
-  // VERIFY EMAIL
-  // =========================
-  verifyEmail(token: string): boolean {
-
-    const users = this.loadUsers();
-
-    const user = users.find(u => u.verificationToken === token);
-
-    if (!user) return false;
-
-    user.verified = true;
-    user.verificationToken = undefined;
-
-    this.saveUsers(users);
-
-    return true;
-  }
-
-  // =========================
-  // FORGOT PASSWORD
-  // =========================
-  forgotPassword(email: string): void {
-
-    const users = this.loadUsers();
-    const user = users.find(u => u.email === email);
-
-    if (!user) return;
-
-    const token = crypto.randomUUID();
-
-    user.resetToken = token;
-    user.resetTokenExpiry = Date.now() + 15 * 60 * 1000;
-
-    this.saveUsers(users);
-
-    this.sendEmail({
-      to: user.email,
-      subject: 'Reset your password',
-      body: `/reset-password?token=${token}`,
-      createdAt: Date.now()
-    });
-  }
-
-  // =========================
-  // RESET PASSWORD
-  // =========================
-  resetPassword(token: string, newPassword: string): boolean {
-
-    const users = this.loadUsers();
-
-    const user = users.find(u =>
-      u.resetToken === token &&
-      u.resetTokenExpiry &&
-      u.resetTokenExpiry > Date.now()
+    return this.http.post<MessageResponse>(
+      `${this.baseUrl}/${user.id}/change-password`,
+      input
     );
-
-    if (!user) return false;
-
-    user.password = newPassword;
-    user.resetToken = undefined;
-    user.resetTokenExpiry = undefined;
-
-    this.saveUsers(users);
-
-    this.sendEmail({
-      to: user.email,
-      subject: 'Password changed',
-      body: 'Your password was successfully updated.',
-      createdAt: Date.now()
-    });
-
-    return true;
   }
 
-  // =========================
-  // TOKEN TIMER
-  // =========================
-  startTokenTimer(): void {
-
-    clearTimeout(this.refreshTimer);
-
-    const expiry = Number(localStorage.getItem('tokenExpiry'));
-
-    if (!expiry) return;
-
-    const timeLeft = expiry - Date.now();
-
-    const refreshTime = timeLeft - 60000;
-
-    if (refreshTime <= 0) {
-      this.refreshToken().subscribe();
-      return;
-    }
-
-    this.refreshTimer = setTimeout(() => {
-      this.refreshToken().subscribe();
-      this.startTokenTimer();
-    }, refreshTime);
+  getAccounts(): Observable<User[]> {
+    return this.http.get<AuthResponse[]>(this.baseUrl).pipe(
+      map(accounts => accounts.map(account => this.toUser(account)))
+    );
   }
 
-  // =========================
-  // REFRESH TOKEN
-  // =========================
-  refreshToken(): Observable<AuthResponse> {
+  deleteAccount(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${id}`);
+  }
 
+  deleteCurrentAccount(): Observable<void> {
     const user = this.getCurrentUser();
-    const refreshToken = localStorage.getItem('refreshToken');
 
-    if (!user || !refreshToken) {
-      this.logout();
-      return throwError(() => 'No session');
+    if (!user) {
+      return of(void 0);
     }
 
-    const response: AuthResponse = {
-      user,
-      accessToken: this.generateFakeJwt(user),
-      refreshToken,
-      expiresIn: 900
-    };
-
-    this.storeTokens(response);
-
-    return of(response);
+    return this.http.delete<void>(`${this.baseUrl}/${user.id}`).pipe(
+      tap(() => this.clearSession())
+    );
   }
 
-  // =========================
-  // LOGOUT
-  // =========================
   logout(): void {
+    this.http.post<void>(
+      `${this.baseUrl}/revoke-token`,
+      {},
+      { withCredentials: true }
+    ).pipe(
+      catchError(() => of(void 0))
+    ).subscribe();
 
-    clearTimeout(this.refreshTimer);
-
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('tokenExpiry');
-
-    this.userSubject.next(null);
+    this.clearSession();
   }
 
-  // =========================
-  // USER HELPERS
-  // =========================
   getCurrentUser(): User | null {
     return this.userSubject.value;
   }
 
-  isTokenValid(): boolean {
-    const expiry = Number(localStorage.getItem('tokenExpiry'));
-    return expiry > Date.now();
+  hasStoredSession(): boolean {
+    return this.getCurrentUser() !== null;
   }
 
-  updateUser(user: User): void {
+  getAccessToken(): string | null {
+    return this.userSubject.value?.jwtToken ?? null;
+  }
 
-    const users = this.loadUsers();
+  isAuthenticated(): boolean {
+    return !!this.getAccessToken();
+  }
 
-    const index = users.findIndex(u => u.id === user.id);
+  getEmailPreview(): DevEmailPreview | null {
+    const stored = localStorage.getItem(this.emailPreviewKey);
 
-    if (index !== -1) {
-      users[index] = user;
-      this.saveUsers(users);
+    if (!stored) {
+      return null;
     }
 
-    this.saveCurrentUser(user);
+    try {
+      return JSON.parse(stored) as DevEmailPreview;
+    } catch {
+      localStorage.removeItem(this.emailPreviewKey);
+      return null;
+    }
+  }
+
+  clearEmailPreview(): void {
+    localStorage.removeItem(this.emailPreviewKey);
+  }
+
+  getPendingVerificationEmail(): string | null {
+    return localStorage.getItem(this.pendingVerificationEmailKey);
+  }
+
+  clearPendingVerificationEmail(): void {
+    localStorage.removeItem(this.pendingVerificationEmailKey);
+  }
+
+  private setSession(user: User): void {
+    localStorage.setItem(this.storageKey, JSON.stringify(user));
     this.userSubject.next(user);
+  }
+
+  private clearSession(): void {
+    localStorage.removeItem(this.storageKey);
+    this.userSubject.next(null);
+  }
+
+  private setPendingVerificationEmail(email: string): void {
+    localStorage.setItem(
+      this.pendingVerificationEmailKey,
+      email
+    );
+  }
+
+  private setEmailPreview(preview?: DevEmailPreview): void {
+    if (!preview) {
+      this.clearEmailPreview();
+      return;
+    }
+
+    localStorage.setItem(this.emailPreviewKey, JSON.stringify(preview));
+  }
+
+  private getUserFromStorage(): User | null {
+    const stored = localStorage.getItem(this.storageKey);
+
+    if (!stored) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(stored) as User;
+    } catch {
+      localStorage.removeItem(this.storageKey);
+      return null;
+    }
+  }
+
+  private toUser(response: AuthResponse): User {
+    return {
+      ...response,
+      verified: response.verified ?? true
+    };
   }
 }

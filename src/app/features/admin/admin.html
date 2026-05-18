@@ -1,1 +1,140 @@
-<p>admin works!</p>
+<div class="row g-4">
+  <div class="col-12 col-xl-7">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h3 class="mb-1">Admin Accounts</h3>
+            <p class="text-muted mb-0">Manage registered users and admins.</p>
+          </div>
+
+          <button class="btn btn-outline-dark btn-sm" (click)="loadAccounts()">
+            Refresh
+          </button>
+        </div>
+
+        @if (errorMessage) {
+          <div class="alert alert-danger">
+            {{ errorMessage }}
+          </div>
+        }
+
+        @if (isLoading) {
+          <p class="mb-0 text-muted">Loading accounts...</p>
+        } @else if (accounts.length === 0) {
+          <p class="mb-0 text-muted">No accounts found.</p>
+        } @else {
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (account of accounts; track account.id) {
+                  <tr [class.table-active]="selectedAccount?.id === account.id">
+                    <td>{{ account.firstName }} {{ account.lastName }}</td>
+                    <td>{{ account.email }}</td>
+                    <td>
+                      <span class="badge text-bg-dark">{{ account.role }}</span>
+                    </td>
+                    <td>
+                      <span [class]="account.verified ? 'badge text-bg-success' : 'badge text-bg-secondary'">
+                        {{ account.verified ? 'Verified' : 'Pending' }}
+                      </span>
+                    </td>
+                    <td class="text-end">
+                      <div class="d-flex justify-content-end gap-2">
+                        <button
+                          class="btn btn-sm btn-outline-primary"
+                          (click)="selectAccount(account)"
+                        >
+                          Manage
+                        </button>
+
+                        <button
+                          class="btn btn-sm btn-outline-danger"
+                          [disabled]="deletingId === account.id"
+                          (click)="removeAccount(account)"
+                        >
+                          {{ deletingId === account.id ? 'Deleting...' : 'Delete' }}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-5">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <h3 class="mb-1">Account Details</h3>
+        <p class="text-muted mb-3">
+          Review and edit the selected account.
+        </p>
+
+        @if (detailErrorMessage) {
+          <div class="alert alert-danger">
+            {{ detailErrorMessage }}
+          </div>
+        }
+
+        @if (detailSuccessMessage) {
+          <div class="alert alert-success">
+            {{ detailSuccessMessage }}
+          </div>
+        }
+
+        @if (!selectedAccount) {
+          <p class="text-muted mb-0">
+            Select an account from the list to manage it.
+          </p>
+        } @else {
+          @if (isLoadingAccount) {
+            <p class="text-muted">Refreshing account details...</p>
+          }
+
+          <form [formGroup]="accountForm" (ngSubmit)="saveAccount()">
+            <div class="mb-2">
+              <label class="form-label">First Name</label>
+              <input class="form-control" formControlName="firstName">
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label">Last Name</label>
+              <input class="form-control" formControlName="lastName">
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label">Email</label>
+              <input class="form-control" formControlName="email">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Role</label>
+              <select class="form-select" formControlName="role">
+                <option value="User">User</option>
+                <option value="Admin">Admin</option>
+              </select>
+            </div>
+
+            <button class="btn btn-dark w-100" [disabled]="isSavingAccount">
+              {{ isSavingAccount ? 'Saving...' : 'Save Account' }}
+            </button>
+          </form>
+        }
+      </div>
+    </div>
+  </div>
+</div>

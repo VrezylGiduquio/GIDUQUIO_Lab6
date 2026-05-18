@@ -6,6 +6,17 @@
   [formGroup]="registerForm"
   (ngSubmit)="onSubmit()"
 >
+  @if (errorMessage) {
+    <div class="alert alert-danger">
+      {{ errorMessage }}
+    </div>
+  }
+
+  @if (successMessage) {
+    <div class="alert alert-success">
+      {{ successMessage }}
+    </div>
+  }
 
   <div class="mb-3">
     <label class="form-label">
@@ -70,8 +81,9 @@
   <button
     type="submit"
     class="btn btn-dark w-100"
+    [disabled]="isSubmitting"
   >
-    Register
+    {{ isSubmitting ? 'Creating account...' : 'Register' }}
   </button>
 
 </form>

@@ -1,17 +1,87 @@
-<div class="card p-4">
+<div class="row g-4">
+  <div class="col-12 col-lg-6">
+    <div class="card p-4 h-100">
+      <h3 class="mb-3">Profile Details</h3>
 
-  <h3>Profile</h3>
+      @if (errorMessage) {
+        <div class="alert alert-danger">
+          {{ errorMessage }}
+        </div>
+      }
 
-  <form [formGroup]="profileForm" (ngSubmit)="updateProfile()">
+      @if (successMessage) {
+        <div class="alert alert-success">
+          {{ successMessage }}
+        </div>
+      }
 
-    <input class="form-control mb-2" formControlName="firstName" placeholder="First Name">
-    <input class="form-control mb-2" formControlName="lastName" placeholder="Last Name">
-    <input class="form-control mb-2" formControlName="email" placeholder="Email">
+      <form [formGroup]="profileForm" (ngSubmit)="updateProfile()">
+        <input class="form-control mb-2" formControlName="firstName" placeholder="First Name">
+        <input class="form-control mb-2" formControlName="lastName" placeholder="Last Name">
+        <input class="form-control mb-3" formControlName="email" placeholder="Email">
 
-    <button class="btn btn-primary w-100">
-      Update Profile
-    </button>
+        <button class="btn btn-primary w-100" [disabled]="isSubmitting">
+          {{ isSubmitting ? 'Saving...' : 'Update Profile' }}
+        </button>
+      </form>
+    </div>
+  </div>
 
-  </form>
+  <div class="col-12 col-lg-6">
+    <div class="card p-4 h-100">
+      <h3 class="mb-3">Change Password</h3>
 
+      @if (passwordErrorMessage) {
+        <div class="alert alert-danger">
+          {{ passwordErrorMessage }}
+        </div>
+      }
+
+      @if (passwordSuccessMessage) {
+        <div class="alert alert-success">
+          {{ passwordSuccessMessage }}
+        </div>
+      }
+
+      <form [formGroup]="passwordForm" (ngSubmit)="changePassword()">
+        <input class="form-control mb-2" type="password" formControlName="currentPassword" placeholder="Current Password">
+        <input class="form-control mb-2" type="password" formControlName="newPassword" placeholder="New Password">
+        <input class="form-control mb-3" type="password" formControlName="confirmPassword" placeholder="Confirm New Password">
+
+        <button class="btn btn-dark w-100" [disabled]="isChangingPassword">
+          {{ isChangingPassword ? 'Updating...' : 'Change Password' }}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card p-4 border-danger">
+      <h3 class="mb-2 text-danger">Delete Account</h3>
+      <p class="text-muted mb-3">
+        Permanently remove your account and revoke your current session.
+      </p>
+
+      @if (deleteErrorMessage) {
+        <div class="alert alert-danger">
+          {{ deleteErrorMessage }}
+        </div>
+      }
+
+      @if (deleteSuccessMessage) {
+        <div class="alert alert-success">
+          {{ deleteSuccessMessage }}
+        </div>
+      }
+
+      <button
+        type="button"
+        class="btn btn-outline-danger"
+        [disabled]="isDeletingAccount"
+        (click)="deleteAccount()"
+      >
+        {{ isDeletingAccount ? 'Deleting...' : 'Delete My Account' }}
+      </button>
+    </div>
+  </div>
 </div>

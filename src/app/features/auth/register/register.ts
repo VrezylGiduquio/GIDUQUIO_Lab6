@@ -20,6 +20,9 @@ import { Router } from '@angular/router';
 export class Register {
 
   registerForm: ReturnType<FormBuilder['group']>;
+  errorMessage = '';
+  successMessage = '';
+  isSubmitting = false;
 
   constructor(private fb: FormBuilder,
   private authService: AuthService,
@@ -73,6 +76,15 @@ export class Register {
     return;
   }
 
+  if (this.registerForm.value.password !== this.registerForm.value.confirmPassword) {
+    this.errorMessage = 'Passwords do not match';
+    return;
+  }
+
+  this.errorMessage = '';
+  this.successMessage = '';
+  this.isSubmitting = true;
+
   const formValue = this.registerForm.value;
 
   const request = {
@@ -83,11 +95,14 @@ export class Register {
   };
 
   this.authService.register(request).subscribe({
-    next: (res) => {
+    next: (response) => {
+      this.isSubmitting = false;
+      this.successMessage = response.message;
       this.router.navigate(['/emails']);
     },
     error: (err) => {
-      console.error(err);
+      this.isSubmitting = false;
+      this.errorMessage = err.error?.message || err.message || 'Registration failed';
     }
   });
 }

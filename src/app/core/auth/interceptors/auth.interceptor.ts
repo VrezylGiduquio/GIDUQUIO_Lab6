@@ -22,7 +22,7 @@ export class AuthInterceptor implements HttpInterceptor {
 
   intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
 
-    const token = localStorage.getItem('accessToken');
+    const token = this.authService.getAccessToken();
 
     let authReq = req;
 
@@ -35,7 +35,7 @@ export class AuthInterceptor implements HttpInterceptor {
       catchError((error: HttpErrorResponse) => {
 
         // Only handle auth errors
-        if (error.status === 401) {
+        if (error.status === 401 && !this.isRefreshRequest(authReq)) {
           return this.handle401Error(authReq, next);
         }
 
@@ -54,6 +54,10 @@ export class AuthInterceptor implements HttpInterceptor {
         Authorization: `Bearer ${token}`
       }
     });
+  }
+
+  private isRefreshRequest(req: HttpRequest<any>): boolean {
+    return req.url.includes('/refresh-token');
   }
 
   // =========================
@@ -78,15 +82,19 @@ export class AuthInterceptor implements HttpInterceptor {
 
     return this.authService.refreshToken().pipe(
 
-      switchMap((response) => {
+      switchMap((user) => {
+        if (!user?.jwtToken) {
+          this.authService.logout();
+          return throwError(() => new Error('Unable to refresh session'));
+        }
 
         this.isRefreshing = false;
 
         // broadcast new token
-        this.refreshSubject.next(response.accessToken);
+        this.refreshSubject.next(user.jwtToken);
 
         return next.handle(
-          this.addToken(req, response.accessToken)
+          this.addToken(req, user.jwtToken)
         );
       }),
 
