@@ -19,7 +19,6 @@ import {
   verifyAccountEmail
 } from '../services/account.service';
 import {
-  isRealEmailEnabled,
   sendPasswordResetEmail,
   sendVerificationEmail
 } from '../services/email.service';
@@ -38,8 +37,13 @@ function buildDevEmailPreview(email: string, subject: string, actionUrl: string)
   };
 }
 
-function buildEmailResponse(email: string, subject: string, actionUrl: string) {
-  if (isRealEmailEnabled()) {
+function buildEmailResponse(
+  email: string,
+  subject: string,
+  actionUrl: string,
+  sentRealEmail: boolean
+) {
+  if (sentRealEmail) {
     return undefined;
   }
 
@@ -47,7 +51,11 @@ function buildEmailResponse(email: string, subject: string, actionUrl: string) {
 }
 
 accountRouter.post('/register', asyncHandler(async (req, res) => {
-  const { firstName, lastName, email, password } = req.body as Record<string, string>;
+  const body = req.body as Record<string, string>;
+  const firstName = body.firstName?.trim();
+  const lastName = body.lastName?.trim();
+  const email = body.email?.trim().toLowerCase();
+  const password = body.password;
 
   if (!firstName || !lastName || !email || !password) {
     throw new HttpError(400, 'All fields are required');
@@ -56,7 +64,7 @@ accountRouter.post('/register', asyncHandler(async (req, res) => {
   const result = await registerAccount({ firstName, lastName, email, password });
   const actionUrl = `${env.frontendBaseUrl}/verify-email?token=${result.verificationToken}`;
 
-  await sendVerificationEmail(email, actionUrl);
+  const sentRealEmail = await sendVerificationEmail(email, actionUrl);
   console.log(`Verify email link: ${actionUrl}`);
 
   res.status(201).json({
@@ -64,13 +72,14 @@ accountRouter.post('/register', asyncHandler(async (req, res) => {
     devEmailPreview: buildEmailResponse(
       email,
       'Verify your account',
-      actionUrl
+      actionUrl,
+      sentRealEmail
     )
   });
 }));
 
 accountRouter.post('/resend-verification', asyncHandler(async (req, res) => {
-  const { email } = req.body as Record<string, string>;
+  const email = (req.body as Record<string, string>).email?.trim().toLowerCase();
 
   if (!email) {
     throw new HttpError(400, 'Email is required');
@@ -85,7 +94,7 @@ accountRouter.post('/resend-verification', asyncHandler(async (req, res) => {
 
   const actionUrl = `${env.frontendBaseUrl}/verify-email?token=${result.verificationToken}`;
 
-  await sendVerificationEmail(email, actionUrl);
+  const sentRealEmail = await sendVerificationEmail(email, actionUrl);
   console.log(`Verify email link: ${actionUrl}`);
 
   res.json({
@@ -93,13 +102,16 @@ accountRouter.post('/resend-verification', asyncHandler(async (req, res) => {
     devEmailPreview: buildEmailResponse(
       email,
       'Verify your account',
-      actionUrl
+      actionUrl,
+      sentRealEmail
     )
   });
 }));
 
 accountRouter.post('/authenticate', asyncHandler(async (req, res) => {
-  const { email, password } = req.body as Record<string, string>;
+  const body = req.body as Record<string, string>;
+  const email = body.email?.trim().toLowerCase();
+  const password = body.password;
 
   if (!email || !password) {
     throw new HttpError(400, 'Email and password are required');
@@ -123,7 +135,7 @@ accountRouter.post('/verify-email', asyncHandler(async (req, res) => {
 }));
 
 accountRouter.post('/forgot-password', asyncHandler(async (req, res) => {
-  const { email } = req.body as Record<string, string>;
+  const email = (req.body as Record<string, string>).email?.trim().toLowerCase();
 
   if (!email) {
     throw new HttpError(400, 'Email is required');
@@ -134,7 +146,7 @@ accountRouter.post('/forgot-password', asyncHandler(async (req, res) => {
   if (result.resetToken) {
     const actionUrl = `${env.frontendBaseUrl}/reset-password?token=${result.resetToken}`;
 
-    await sendPasswordResetEmail(email, actionUrl);
+    const sentRealEmail = await sendPasswordResetEmail(email, actionUrl);
     console.log(`Reset password link: ${actionUrl}`);
 
     res.json({
@@ -142,7 +154,8 @@ accountRouter.post('/forgot-password', asyncHandler(async (req, res) => {
       devEmailPreview: buildEmailResponse(
         email,
         'Reset your password',
-        actionUrl
+        actionUrl,
+        sentRealEmail
       )
     });
     return;
@@ -224,7 +237,11 @@ accountRouter.put('/:id', authorize, asyncHandler(async (req, res) => {
     throw new HttpError(401, 'Unauthorized');
   }
 
-  const { firstName, lastName, email, role } = req.body as Record<string, string>;
+  const body = req.body as Record<string, string>;
+  const firstName = body.firstName?.trim();
+  const lastName = body.lastName?.trim();
+  const email = body.email?.trim().toLowerCase();
+  const role = body.role;
 
   if (!firstName || !lastName || !email) {
     throw new HttpError(400, 'firstName, lastName and email are required');

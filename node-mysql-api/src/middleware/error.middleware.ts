@@ -8,6 +8,11 @@ export function errorMiddleware(
   res: Response,
   _next: NextFunction
 ) {
+  if (err instanceof Error && err.message.includes('not allowed by CORS')) {
+    res.status(403).json({ message: err.message });
+    return;
+  }
+
   if (err instanceof HttpError) {
     res.status(err.statusCode).json({ message: err.message });
     return;

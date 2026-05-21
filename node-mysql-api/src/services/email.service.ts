@@ -22,7 +22,8 @@ function isPlaceholder(value: string) {
 }
 
 function canSendRealEmail() {
-  return Boolean(
+  return env.emailDeliveryMode !== 'preview' &&
+  Boolean(
     env.emailJsServiceId &&
     env.emailJsVerificationTemplateId &&
     env.emailJsResetTemplateId &&
@@ -71,12 +72,23 @@ export function getEmailConfigurationIssue(): string | null {
 }
 
 function buildTemplateParams(payload: EmailPayload) {
+  const actionUrl = extractFirstLink(payload.html) ?? '';
+
   return {
     to_email: payload.to,
+    user_email: payload.to,
+    email: payload.to,
+    reply_to: payload.to,
+    to_name: payload.to,
     subject: payload.subject,
-    action_url: extractFirstLink(payload.html) ?? '',
+    action_url: actionUrl,
+    actionUrl,
+    reset_link: actionUrl,
+    verification_link: actionUrl,
+    link: actionUrl,
     message_html: payload.html,
     message_text: payload.text,
+    message: payload.text,
     audience_name: env.emailAudienceName
   };
 }
@@ -115,10 +127,16 @@ async function sendWithEmailJs(payload: EmailPayload) {
   }
 
   const errorText = await response.text();
+  const message = `Unable to send email with EmailJS: ${errorText || response.statusText}`;
+
+  if (env.emailDeliveryMode !== 'emailjs') {
+    console.warn(message);
+    return false;
+  }
 
   throw new HttpError(
     502,
-    `Unable to send email with EmailJS: ${errorText || response.statusText}`
+    message
   );
 }
 

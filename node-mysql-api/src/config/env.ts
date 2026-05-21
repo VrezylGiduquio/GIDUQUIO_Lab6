@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 type SameSite = 'lax' | 'strict' | 'none';
+type EmailDeliveryMode = 'preview' | 'emailjs' | 'auto';
 
 function required(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
@@ -24,15 +25,30 @@ function booleanFromEnv(name: string, fallback: boolean): boolean {
   return value === 'true';
 }
 
+function emailDeliveryModeFromEnv(): EmailDeliveryMode {
+  const value = process.env.EMAIL_DELIVERY_MODE as EmailDeliveryMode | undefined;
+
+  if (value === 'preview' || value === 'emailjs' || value === 'auto') {
+    return value;
+  }
+
+  return (process.env.NODE_ENV ?? 'development') === 'production'
+    ? 'emailjs'
+    : 'preview';
+}
+
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.PORT ?? 4000),
-  corsOrigin: required('CORS_ORIGIN', 'http://localhost:4200'),
-  corsOrigins: required('CORS_ORIGIN', 'http://localhost:4200')
+  corsOrigin: required('CORS_ORIGIN', 'http://localhost:4200,http://127.0.0.1:4200'),
+  corsOrigins: required('CORS_ORIGIN', 'http://localhost:4200,http://127.0.0.1:4200')
     .split(',')
     .map(origin => origin.trim())
     .filter(Boolean),
-  frontendBaseUrl: required('CORS_ORIGIN', 'http://localhost:4200')
+  frontendBaseUrl: required(
+    'FRONTEND_BASE_URL',
+    required('CORS_ORIGIN', 'http://localhost:4200,http://127.0.0.1:4200')
+  )
     .split(',')
     .map(origin => origin.trim())
     .filter(Boolean)[0] ?? 'http://localhost:4200',
@@ -57,11 +73,10 @@ export const env = {
     '',
   emailJsResetTemplateId:
     process.env.EMAILJS_RESET_TEMPLATE_ID ??
-    process.env.VITE_EMAILJS_RESET_TEMPLATE_ID ??
     process.env.EMAILJS_TEMPLATE_ID ??
-    process.env.VITE_EMAILJS_TEMPLATE_ID ??
     '',
   emailJsPublicKey: process.env.EMAILJS_PUBLIC_KEY ?? process.env.VITE_EMAILJS_PUBLIC_KEY ?? '',
   emailJsPrivateKey: process.env.EMAILJS_PRIVATE_KEY ?? process.env.VITE_EMAILJS_PRIVATE_KEY ?? '',
+  emailDeliveryMode: emailDeliveryModeFromEnv(),
   emailAudienceName: process.env.EMAIL_AUDIENCE_NAME ?? 'Angular Auth Boilerplate'
 };
