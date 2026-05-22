@@ -14,6 +14,7 @@ import { DevEmailPreview } from '../../../core/auth/models/dev-email-response.mo
 export class EmailInbox {
   preview: DevEmailPreview | null;
   pendingEmail: string | null;
+  pendingResetEmail: string | null;
   statusMessage = '';
   errorMessage = '';
   isResending = false;
@@ -21,10 +22,11 @@ export class EmailInbox {
   constructor(private authService: AuthService) {
     this.preview = this.authService.getEmailPreview();
     this.pendingEmail = this.authService.getPendingVerificationEmail();
+    this.pendingResetEmail = this.authService.getPendingResetEmail();
   }
 
   resendEmail(): void {
-    const email = this.preview?.to ?? this.pendingEmail;
+    const email = this.preview?.to ?? this.pendingResetEmail ?? this.pendingEmail;
 
     if (!email) {
       this.errorMessage = 'No email preview is available to resend yet.';
@@ -43,6 +45,7 @@ export class EmailInbox {
       next: (response) => {
         this.preview = this.authService.getEmailPreview();
         this.pendingEmail = this.authService.getPendingVerificationEmail();
+        this.pendingResetEmail = this.authService.getPendingResetEmail();
         this.statusMessage = response.message;
         this.isResending = false;
       },
@@ -54,7 +57,7 @@ export class EmailInbox {
   }
 
   isResetPasswordPreview(): boolean {
-    return this.preview?.subject === 'Reset your password';
+    return this.preview?.subject === 'Reset your password' || !!this.pendingResetEmail;
   }
 
   emailActionLabel(): string {

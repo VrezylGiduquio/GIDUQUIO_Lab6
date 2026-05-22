@@ -16,9 +16,11 @@ import { User } from '../models/user.model';
 })
 export class AuthService {
   private readonly baseUrl = `${environment.apiUrl}/accounts`;
+  private readonly httpOptions = { withCredentials: true };
   private readonly storageKey = 'currentUser';
   private readonly emailPreviewKey = 'devEmailPreview';
   private readonly pendingVerificationEmailKey = 'pendingVerificationEmail';
+  private readonly pendingResetEmailKey = 'pendingResetEmail';
 
   private readonly userSubject = new BehaviorSubject<User | null>(
     this.getUserFromStorage()
@@ -32,7 +34,7 @@ export class AuthService {
     return this.http.post<AuthResponse>(
       `${this.baseUrl}/authenticate`,
       data,
-      { withCredentials: true }
+      this.httpOptions
     ).pipe(
       map(response => this.toUser(response)),
       tap(user => this.setSession(user))
@@ -40,50 +42,83 @@ export class AuthService {
   }
 
   register(data: RegisterRequest): Observable<MessageResponse> {
-    return this.http.post<MessageResponse>(`${this.baseUrl}/register`, data).pipe(
+    const request = this.trimRegistrationRequest(data);
+
+    return this.http.post<MessageResponse>(
+      `${this.baseUrl}/register`,
+      request,
+      this.httpOptions
+    ).pipe(
       tap(response => {
-        this.setPendingVerificationEmail(data.email);
+        this.setPendingVerificationEmail(request.email);
         this.setEmailPreview(response.devEmailPreview);
       })
     );
   }
 
   verifyEmail(token: string): Observable<void> {
-    return this.http.post<void>(`${this.baseUrl}/verify-email`, { token });
+    return this.http.post<void>(
+      `${this.baseUrl}/verify-email`,
+      { token },
+      this.httpOptions
+    );
   }
 
   forgotPassword(email: string): Observable<MessageResponse> {
-    return this.http.post<MessageResponse>(`${this.baseUrl}/forgot-password`, { email }).pipe(
-      tap(response => this.setEmailPreview(response.devEmailPreview))
+    const normalizedEmail = email.trim().toLowerCase();
+
+    return this.http.post<MessageResponse>(
+      `${this.baseUrl}/forgot-password`,
+      { email: normalizedEmail },
+      this.httpOptions
+    ).pipe(
+      tap(response => {
+        this.setPendingResetEmail(normalizedEmail);
+        this.setEmailPreview(response.devEmailPreview);
+      })
     );
   }
 
   resendVerificationEmail(email: string): Observable<MessageResponse> {
-    return this.http.post<MessageResponse>(`${this.baseUrl}/resend-verification`, { email }).pipe(
+    const normalizedEmail = email.trim().toLowerCase();
+
+    return this.http.post<MessageResponse>(
+      `${this.baseUrl}/resend-verification`,
+      { email: normalizedEmail },
+      this.httpOptions
+    ).pipe(
       tap(response => {
-        this.setPendingVerificationEmail(email);
+        this.setPendingVerificationEmail(normalizedEmail);
         this.setEmailPreview(response.devEmailPreview);
       })
     );
   }
 
   validateResetToken(token: string): Observable<void> {
-    return this.http.post<void>(`${this.baseUrl}/validate-reset-token`, { token });
+    return this.http.post<void>(
+      `${this.baseUrl}/validate-reset-token`,
+      { token },
+      this.httpOptions
+    );
   }
 
   resetPassword(token: string, password: string, confirmPassword: string): Observable<void> {
-    return this.http.post<void>(`${this.baseUrl}/reset-password`, {
-      token,
-      password,
-      confirmPassword
-    });
+    return this.http.post<void>(
+      `${this.baseUrl}/reset-password`,
+      {
+        token,
+        password,
+        confirmPassword
+      },
+      this.httpOptions
+    );
   }
 
   refreshToken(): Observable<User | null> {
     return this.http.post<AuthResponse>(
       `${this.baseUrl}/refresh-token`,
       {},
-      { withCredentials: true }
+      this.httpOptions
     ).pipe(
       map(response => this.toUser(response)),
       tap(user => this.setSession(user)),
@@ -95,20 +130,31 @@ export class AuthService {
   }
 
   updateProfile(user: User): Observable<User> {
-    return this.http.put<AuthResponse>(`${this.baseUrl}/${user.id}`, user).pipe(
+    return this.http.put<AuthResponse>(
+      `${this.baseUrl}/${user.id}`,
+      this.toAccountUpdateRequest(user),
+      this.httpOptions
+    ).pipe(
       map(response => this.toUser(response)),
       tap(updatedUser => this.setSession(updatedUser))
     );
   }
 
   getAccount(id: string): Observable<User> {
-    return this.http.get<AuthResponse>(`${this.baseUrl}/${id}`).pipe(
+    return this.http.get<AuthResponse>(
+      `${this.baseUrl}/${id}`,
+      this.httpOptions
+    ).pipe(
       map(response => this.toUser(response))
     );
   }
 
   updateAccount(user: User): Observable<User> {
-    return this.http.put<AuthResponse>(`${this.baseUrl}/${user.id}`, user).pipe(
+    return this.http.put<AuthResponse>(
+      `${this.baseUrl}/${user.id}`,
+      this.toAccountUpdateRequest(user),
+      this.httpOptions
+    ).pipe(
       map(response => this.toUser(response)),
       tap(updatedUser => {
         if (this.getCurrentUser()?.id === updatedUser.id) {
@@ -131,18 +177,25 @@ export class AuthService {
 
     return this.http.post<MessageResponse>(
       `${this.baseUrl}/${user.id}/change-password`,
-      input
+      input,
+      this.httpOptions
     );
   }
 
   getAccounts(): Observable<User[]> {
-    return this.http.get<AuthResponse[]>(this.baseUrl).pipe(
+    return this.http.get<AuthResponse[]>(
+      this.baseUrl,
+      this.httpOptions
+    ).pipe(
       map(accounts => accounts.map(account => this.toUser(account)))
     );
   }
 
   deleteAccount(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/${id}`);
+    return this.http.delete<void>(
+      `${this.baseUrl}/${id}`,
+      this.httpOptions
+    );
   }
 
   deleteCurrentAccount(): Observable<void> {
@@ -161,7 +214,7 @@ export class AuthService {
     this.http.post<void>(
       `${this.baseUrl}/revoke-token`,
       {},
-      { withCredentials: true }
+      this.httpOptions
     ).pipe(
       catchError(() => of(void 0))
     ).subscribe();
@@ -210,6 +263,36 @@ export class AuthService {
 
   clearPendingVerificationEmail(): void {
     localStorage.removeItem(this.pendingVerificationEmailKey);
+  }
+
+  getPendingResetEmail(): string | null {
+    return localStorage.getItem(this.pendingResetEmailKey);
+  }
+
+  clearPendingResetEmail(): void {
+    localStorage.removeItem(this.pendingResetEmailKey);
+  }
+
+  private setPendingResetEmail(email: string): void {
+    localStorage.setItem(this.pendingResetEmailKey, email);
+  }
+
+  private trimRegistrationRequest(data: RegisterRequest): RegisterRequest {
+    return {
+      firstName: data.firstName.trim(),
+      lastName: data.lastName.trim(),
+      email: data.email.trim().toLowerCase(),
+      password: data.password
+    };
+  }
+
+  private toAccountUpdateRequest(user: User) {
+    return {
+      firstName: user.firstName.trim(),
+      lastName: user.lastName.trim(),
+      email: user.email.trim().toLowerCase(),
+      role: user.role
+    };
   }
 
   private setSession(user: User): void {

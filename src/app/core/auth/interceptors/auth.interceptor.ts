@@ -23,10 +23,11 @@ export class AuthInterceptor implements HttpInterceptor {
   intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
 
     const token = this.authService.getAccessToken();
+    const isAuthEndpoint = this.isAuthEndpoint(req);
 
     let authReq = req;
 
-    if (token) {
+    if (token && !isAuthEndpoint) {
       authReq = this.addToken(req, token);
     }
 
@@ -34,8 +35,7 @@ export class AuthInterceptor implements HttpInterceptor {
 
       catchError((error: HttpErrorResponse) => {
 
-        // Only handle auth errors
-        if (error.status === 401 && !this.isRefreshRequest(authReq)) {
+        if (error.status === 401 && !isAuthEndpoint) {
           return this.handle401Error(authReq, next);
         }
 
@@ -56,8 +56,18 @@ export class AuthInterceptor implements HttpInterceptor {
     });
   }
 
-  private isRefreshRequest(req: HttpRequest<any>): boolean {
-    return req.url.includes('/refresh-token');
+  private isAuthEndpoint(req: HttpRequest<any>): boolean {
+    return [
+      '/authenticate',
+      '/register',
+      '/resend-verification',
+      '/verify-email',
+      '/forgot-password',
+      '/validate-reset-token',
+      '/reset-password',
+      '/refresh-token',
+      '/revoke-token'
+    ].some(path => req.url.includes(path));
   }
 
   // =========================

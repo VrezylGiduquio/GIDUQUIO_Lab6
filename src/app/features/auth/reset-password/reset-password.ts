@@ -98,6 +98,7 @@ export class ResetPassword implements OnInit {
       next: () => {
         this.isSubmitting = false;
         this.successMessage = 'Password updated successfully. You can now log in.';
+        this.authService.clearPendingResetEmail();
         this.router.navigate(['/login']);
       },
       error: (err) => {

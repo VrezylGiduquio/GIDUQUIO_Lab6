@@ -14,10 +14,10 @@
       </div>
     }
 
-    @if (preview || pendingEmail) {
+    @if (preview || pendingEmail || pendingResetEmail) {
       <p class="mb-3 text-muted">
         {{ emailActionLabel() }}
-        <strong>{{ preview?.to ?? pendingEmail }}</strong>.
+        <strong>{{ preview?.to ?? pendingResetEmail ?? pendingEmail }}</strong>.
         If you did not receive it, resend it below.
       </p>
 
