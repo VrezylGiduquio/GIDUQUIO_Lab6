@@ -4,7 +4,12 @@
   "tasks": [
     {
       "type": "npm",
+      "label": "npm: frontend start",
       "script": "start",
+      "path": "frontend",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
       "isBackground": true,
       "problemMatcher": {
         "owner": "typescript",
@@ -22,7 +27,12 @@
     },
     {
       "type": "npm",
+      "label": "npm: frontend test",
       "script": "test",
+      "path": "frontend",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
       "isBackground": true,
       "problemMatcher": {
         "owner": "typescript",

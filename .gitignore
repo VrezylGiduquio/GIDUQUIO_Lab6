@@ -1,16 +1,19 @@
 # See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
 # Compiled output
-/dist
-/tmp
-/out-tsc
-/bazel-out
+dist/
+tmp/
+out-tsc/
+bazel-out/
 
 # Node
-/node_modules
-/node-mysql-api/node_modules
-/node-mysql-api/dist
-/node-mysql-api/.env
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/cache/
+node-mysql-api/node_modules/
+node-mysql-api/dist/
+node-mysql-api/.env
 npm-debug.log
 yarn-error.log
 
@@ -33,13 +36,12 @@ yarn-error.log
 .history/*
 
 # Miscellaneous
-/.angular/cache
 .sass-cache/
-/connect.lock
-/coverage
+connect.lock
+coverage/
 /libpeerconnection.log
 testem.log
-/typings
+typings/
 __screenshots__/
 *.local
 

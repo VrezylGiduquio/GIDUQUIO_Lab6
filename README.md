@@ -5,32 +5,42 @@ Full-stack authentication system using:
 - Node.js + Express backend
 - MySQL database
 
-This repository is wired to support both evaluation stages from the final project instructions:
-- Stage A: Angular app with built-in fake backend
-- Stage B: Angular app connected to the real Node.js + MySQL API
-
-## Features
-
-- Sign up with email verification
-- Login with JWT auth
-- Refresh token session flow
-- Forgot password and reset password
-- Role-based authorization with `Admin` and `User`
-- Profile update, password change, and self-delete
-- Admin account management
-- Backend API docs at `/api-docs`
-
 ## Project Structure
 
-- `src/`: Angular frontend
-- `node-mysql-api/`: Node.js + MySQL backend
+```text
+GIDUQUIO_Lab6/
+├─ frontend/          Angular application
+├─ node-mysql-api/    Node.js + Express + MySQL API
+├─ .vscode/           Workspace launch/tasks
+├─ package.json       Root convenience scripts
+└─ README.md
+```
+
+The frontend and backend are now separated into their own project folders. Each has its own `package.json`, dependencies, and build scripts.
+
+## Root Commands
+
+From the repository root:
+
+```bash
+npm run frontend
+npm run backend
+```
+
+Useful root scripts:
+- `npm run frontend`: start Angular on `http://127.0.0.1:4200`
+- `npm run frontend:build`: build the Angular app
+- `npm run frontend:test`: run frontend tests
+- `npm run backend`: start the API in development mode
+- `npm run backend:build`: compile the API
+- `npm run backend:start`: run the compiled API
 
 ## Stage A: Fake Backend
 
 The Angular app includes a built-in fake backend interceptor.
 
 To enable it, edit:
-- [environment.ts](/Users/jamardines/Desktop/GIDUQUIO_Lab6/src/environments/environment.ts:1)
+- [environment.ts](/c:/Users/tange/Documents/GIDUQUIO_Lab6/frontend/src/environments/environment.ts:1)
 
 Set:
 
@@ -45,8 +55,8 @@ export const environment = {
 Then run:
 
 ```bash
-cd /Users/jamardines/Desktop/GIDUQUIO_Lab6
-nvm use 22
+cd frontend
+npm install
 npm start
 ```
 
@@ -55,13 +65,6 @@ Open:
 ```text
 http://127.0.0.1:4200
 ```
-
-Use Stage A to demonstrate:
-- registration
-- mock email alert / verification link
-- login
-- route guards
-- admin access
 
 To switch back to the real API, set `useFakeBackend: false`.
 
@@ -72,8 +75,8 @@ To switch back to the real API, set `useFakeBackend: false`.
 Copy the backend env template:
 
 ```bash
-cd /Users/jamardines/Desktop/GIDUQUIO_Lab6/node-mysql-api
-cp .env.example .env
+cd node-mysql-api
+copy .env.example .env
 ```
 
 Update `.env` with your real values:
@@ -101,7 +104,7 @@ RESEND_AUDIENCE_NAME=Your App Users
 Install dependencies and run the backend:
 
 ```bash
-cd /Users/jamardines/Desktop/GIDUQUIO_Lab6/node-mysql-api
+cd node-mysql-api
 npm install
 npm run dev
 ```
@@ -112,17 +115,13 @@ Useful routes:
 
 ### Frontend Setup
 
-The local frontend environment already points to:
-- `http://127.0.0.1:4000`
-
-Make sure fake backend is disabled in:
-- [environment.ts](/Users/jamardines/Desktop/GIDUQUIO_Lab6/src/environments/environment.ts:1)
+The local frontend environment is configured in:
+- [environment.ts](/c:/Users/tange/Documents/GIDUQUIO_Lab6/frontend/src/environments/environment.ts:1)
 
 Run:
 
 ```bash
-cd /Users/jamardines/Desktop/GIDUQUIO_Lab6
-nvm use 22
+cd frontend
 npm install
 npm start
 ```
@@ -136,41 +135,37 @@ http://127.0.0.1:4200
 ## Production Configuration
 
 Production API URL is configured in:
-- [environment.prod.ts](/Users/jamardines/Desktop/GIDUQUIO_Lab6/src/environments/environment.prod.ts:1)
+- [environment.prod.ts](/c:/Users/tange/Documents/GIDUQUIO_Lab6/frontend/src/environments/environment.prod.ts:1)
 
 Build command:
 
 ```bash
-ng build --configuration production
+cd frontend
+npm run build -- --configuration production
 ```
 
 ## SPA Rewrite Rule
 
 For Render or similar static hosting, configure a rewrite rule:
-
 - Source: `/*`
 - Destination: `/index.html`
 - Action: `Rewrite`
 
-This is required so deep links like:
-- `/verify-email?token=...`
-- `/reset-password?token=...`
+This is required so deep links like `/verify-email?token=...` and `/reset-password?token=...` do not return `404`.
 
-do not return `404`.
+## Deployment Checklists
 
-## Backend Deployment Checklist
-
+Backend:
 - deploy the Node.js API publicly
 - connect it to remote MySQL
 - make `/api-docs` publicly reachable
 - set `CORS_ORIGIN` to the deployed frontend URL
 - configure email delivery for verification/reset emails
 
-## Frontend Deployment Checklist
-
-- deploy Angular as an SPA
-- build with `ng build --configuration production`
-- verify rewrite rule is active
+Frontend:
+- deploy Angular as an SPA from `frontend/`
+- build with `npm run build -- --configuration production`
+- verify the rewrite rule is active
 - update `environment.prod.ts` to the deployed API URL
 
 ## Security Notes
@@ -178,15 +173,3 @@ do not return `404`.
 - secrets must stay in `.env` or hosting platform environment variables
 - `.env` is ignored by git
 - do not hardcode JWT secrets or DB passwords in committed code
-
-## Exam Verification Flow
-
-Expected checks from the final instructions:
-
-1. Register the first account and verify it becomes `Admin`
-2. Register a second account and verify it becomes `User`
-3. Verify email through the verification link
-4. Log in and confirm protected routes work
-5. Confirm `User` cannot access the admin panel
-6. Confirm `Admin` can manage accounts
-7. Confirm refresh token flow and login persistence
