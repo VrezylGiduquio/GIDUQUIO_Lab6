@@ -10,9 +10,11 @@ import { accountRouter } from './routes/account.routes';
 
 export const app = express();
 
+const allowAnyOrigin = env.nodeEnv === 'production' && env.corsOrigins.length === 0;
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || env.corsOrigins.includes(origin)) {
+    if (!origin || env.corsOrigins.includes(origin) || allowAnyOrigin) {
       callback(null, true);
       return;
     }

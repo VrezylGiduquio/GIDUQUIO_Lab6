@@ -5,6 +5,8 @@ dotenv.config();
 type SameSite = 'lax' | 'strict' | 'none';
 type EmailDeliveryMode = 'preview' | 'emailjs' | 'auto';
 
+const defaultCorsOrigin = 'http://localhost:4200,http://127.0.0.1:4200';
+
 function required(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
 
@@ -40,14 +42,14 @@ function emailDeliveryModeFromEnv(): EmailDeliveryMode {
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.PORT ?? 4000),
-  corsOrigin: required('CORS_ORIGIN', 'http://localhost:4200,http://127.0.0.1:4200'),
-  corsOrigins: required('CORS_ORIGIN', 'http://localhost:4200,http://127.0.0.1:4200')
+  corsOrigin: process.env.CORS_ORIGIN ?? defaultCorsOrigin,
+  corsOrigins: (process.env.CORS_ORIGIN ?? defaultCorsOrigin)
     .split(',')
     .map(origin => origin.trim())
     .filter(Boolean),
   frontendBaseUrl: required(
     'FRONTEND_BASE_URL',
-    required('CORS_ORIGIN', 'http://localhost:4200,http://127.0.0.1:4200')
+    process.env.CORS_ORIGIN ?? defaultCorsOrigin
   )
     .split(',')
     .map(origin => origin.trim())

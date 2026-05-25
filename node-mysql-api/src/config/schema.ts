@@ -3,6 +3,15 @@ import mysql from 'mysql2/promise';
 import { env } from './env';
 import { pool } from './db';
 
+function isDatabaseCreateAccessDenied(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'ER_DBACCESS_DENIED_ERROR'
+  );
+}
+
 export async function initializeSchema() {
   const serverConnection = await mysql.createConnection({
     host: env.dbHost,
@@ -14,6 +23,14 @@ export async function initializeSchema() {
   try {
     await serverConnection.query(
       `CREATE DATABASE IF NOT EXISTS \`${env.dbName}\``
+    );
+  } catch (error) {
+    if (!isDatabaseCreateAccessDenied(error)) {
+      throw error;
+    }
+
+    console.warn(
+      `Skipping database creation for ${env.dbName}; the MySQL user does not have CREATE DATABASE permission.`
     );
   } finally {
     await serverConnection.end();
